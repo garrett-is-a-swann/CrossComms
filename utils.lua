@@ -19,7 +19,6 @@ NAMESPACE.split = function(string, over)
     return list
 end
 
-print('init debug')
 local DEBUG_LEVEL = true
 NAMESPACE.debug = function(...)
     if DEBUG_LEVEL then

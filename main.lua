@@ -8,9 +8,9 @@ local CURRENT_OWNER = nil
 local CharacterStats = {}
 -- CharacterStats['Eh'] = 'Herby'
 --
-local debug = NAMESPACE.debug
-local split = NAMESPACE.debug
-local markMessageUsed = NAMESPACE.markMessageUsed
+debug = NAMESPACE.debug
+split = NAMESPACE.split
+markMessageUsed = NAMESPACE.markMessageUsed
 
 local SEP = 'I11I'
 function relayGuildToOwner()
