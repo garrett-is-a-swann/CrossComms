@@ -1,3 +1,4 @@
+local ADDON_NAME, NAMESPACE = ...
 local CHANNEL_NAME = 'Herbyfection'
 local PREFIX = 'crosscomms'
 local PERFECTION_PREFIX = '/Perfection/ '
@@ -6,67 +7,32 @@ local HERBY_PREFIX = '/Herby/ '
 local CURRENT_OWNER = nil
 local CharacterStats = {}
 -- CharacterStats['Eh'] = 'Herby'
-
-local MessageContainer = {}
-local MessageTable = {}
-local MessageTableIndex = 0
-local MESSAGE_TABLE_LENGTH = 10
-function markMessageUsed(lineid) 
-    if not MessageContainer[lineid] then
-        MessageContainer[lineid] = true
-        debug('lineid ', lineid)
-        if MessageTable[MessageTableIndex] then
-            MessageContainer[MessageTable[MessageTableIndex]] = nil
-        end
-
-        MessageTable[MessageTableIndex] = lineid
-
-        MessageTableIndex = MessageTableIndex + 1
-
-        debug('Message Table Index:', MessageTableIndex)
-
-        if MessageTableIndex == MESSAGE_TABLE_LENGTH then
-            MessageTableIndex = 0
-        end
-        return true
-    else
-        return false
-    end
-end
+--
+local debug = NAMESPACE.debug
+local split = NAMESPACE.debug
+local markMessageUsed = NAMESPACE.markMessageUsed
 
 local SEP = 'I11I'
-function split(string, over)
-    local list = {}
-
-    local cur_string = string
-    while true do
-        local next_index, end_index = cur_string:find(over)
-        if next_index == nil then
-            list[#list + 1] = cur_string
-            break
-        end
-        local next_string = cur_string:sub(0, next_index-1)
-        cur_string = cur_string:sub(end_index+1)
-        last_index = next_index
-        list[#list + 1] = next_string
-    end
-
-    return list
-end
-
-local DEBUG_LEVEL = true
-function debug(...)
-    if DEBUG_LEVEL then
-        print(...)
-    end
-end
-
 function relayGuildToOwner()
     local guild_name = GetGuildInfo('player')
     local payload = 'SET_GUILD'..SEP..guild_name
     debug('Current Owner:', CURRENT_OWNER)
     debug('Sending info to owner('..CURRENT_OWNER..': '..payload)
     C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
+end
+
+function onChannelJoin(...)
+    -- If we are the leader, query the new user's Guild/Version
+end
+
+function respondChannelJoinQuery(...)
+    -- TODO(Garrett): If version out of date, leave channel and alert user
+    relayGuildToOwner()
+end
+
+function onGuildMessage(...)
+    -- TODO(Garrett)
+    -- Capture: Message, 
 end
 
 function eventHandler(self, event, ... )
@@ -172,6 +138,8 @@ local SLASH_COMMANDS = {
     
 }
 
+
+-- Init
 (function()
     debug('Loading Cross Comms')
     local register_channel = C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
