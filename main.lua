@@ -11,6 +11,8 @@ local CharacterStats = {}
 debug = NAMESPACE.debug
 split = NAMESPACE.split
 markMessageUsed = NAMESPACE.markMessageUsed
+buildGuildRoster = NAMESPACE.buildGuildRoster
+wait = NAMESPACE.wait
 
 local SEP = 'I11I'
 function relayGuildToOwner()
@@ -35,6 +37,11 @@ function onGuildMessage(...)
     -- Capture: Message, 
 end
 
+function onStartup()
+    JoinChannelByName(CHANNEL_NAME)
+    DisplayChannelOwner(CHANNEL_NAME)
+end
+
 function eventHandler(self, event, ... )
     if event == 'CHAT_MSG_GUILD' then
         debug(event)
@@ -51,11 +58,10 @@ function eventHandler(self, event, ... )
         C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
     elseif event == 'PLAYER_ENTERING_WORLD' then
         -- Join a chat channel
-        JoinChannelByName(CHANNEL_NAME)
-
-        DisplayChannelOwner(CHANNEL_NAME)
+        wait(10, onStartup) 
 
     elseif event == 'CHAT_MSG_CHANNEL_NOTICE_USER' then
+        -- Occurs when a channel notice occurs. We trigger this by displaying the ChannelOwner on init.
         local e_type, owner, _, _, _, _, _, index, channel = ...
 
         debug(e_type, owner, index, channel)
@@ -72,7 +78,9 @@ function eventHandler(self, event, ... )
             debug('Registering self...')
             CharacterStats[UnitName('player')] = GetGuildInfo('player')
             debug('Registering', UnitName('player'), '-', GetGuildInfo('player'))
-        end
+        end	
+
+        buildGuildRoster()
 
     elseif event == 'CHAT_MSG_ADDON' then
         local prefix, message, channel, sender, target, zone, localid, name, instanceid = ...
