@@ -4,9 +4,10 @@ local PREFIX = 'crosscomms'
 local PERFECTION_PREFIX = '/Perfection/ '
 local HERBY_PREFIX = '/Herby/ '
 
+local GUILD_ROSTER = {}
 local CURRENT_OWNER = nil
 local CharacterStats = {}
--- CharacterStats['Eh'] = 'Herby'
+-- CharacterStats['Eh-Blaumeow'] = 'Herby'
 --
 debug = NAMESPACE.debug
 split = NAMESPACE.split
@@ -32,9 +33,14 @@ function respondChannelJoinQuery(...)
     relayGuildToOwner()
 end
 
-function onGuildMessage(...)
+function onGuildMessage(text, author)
     -- TODO(Garrett)
     -- Capture: Message, 
+
+    local guild_name = GetGuildInfo('player')
+    local payload = table.concat({'SENT_FROM', author, guild_name, ':', text}, SEP)
+    debug(payload)
+    C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
 end
 
 function onStartup()
@@ -51,11 +57,7 @@ function eventHandler(self, event, ... )
         if message:find('^'..PERFECTION_PREFIX) ~= nil or message:find('^'..HERBY_PREFIX) ~= nil then
             return
         end
-
-        local guild_name = GetGuildInfo('player')
-        local payload = 'SENT_FROM'..SEP..'nil'..SEP..canonoical_author..SEP..guild_name..SEP..message
-        debug(payload)
-        C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
+        onGuildMessage(message, canonoical_author)
     elseif event == 'PLAYER_ENTERING_WORLD' then
         -- Join a chat channel
         wait(10, onStartup) 
@@ -80,7 +82,7 @@ function eventHandler(self, event, ... )
             debug('Registering', UnitName('player'), '-', GetGuildInfo('player'))
         end	
 
-        buildGuildRoster()
+        GUILD_ROSTER = buildGuildRoster()
 
     elseif event == 'CHAT_MSG_ADDON' then
         local prefix, message, channel, sender, target, zone, localid, name, instanceid = ...
@@ -91,49 +93,129 @@ function eventHandler(self, event, ... )
         debug(event)
         debug(...)
         local payload = split(message, SEP)
-        debug(payload[1])
+        local signal = payload[1]
+        debug(signal)
 
-        if payload[1] == 'SET_GUILD' then
+        if signal == 'SET_GUILD' then
+            local signal, player_name = unpack(payload)
             debug('Registering...')
-            CharacterStats[sender] = payload[2]
-            debug('Register ', sender, '-',payload[2])
+            CharacterStats[sender] = player_name
+            debug('Register ', sender, '-', player_name)
 
         -- A child sent us a message to coodinate 
-        elseif payload[1] == 'SENT_FROM' then
+        elseif signal == 'SENT_FROM' then
+            local signal, author, guild_name, message_sep, text = unpack(payload)
 
             -- Generate the correct prefix for the guild.
             local message_prefix = nil
-            if payload[4] == 'Herbs and Spices' then
+            if guild_name == 'Herbs and Spices' then
                 message_prefix = HERBY_PREFIX
-            elseif payload[4] == 'Perfection' then
+            elseif guild_name == 'Perfection' then
                 message_prefix = PERFECTION_PREFIX
             else
                 -- A user
-                print('CrossComms!Warning: Expected but did not find a known guild in the parcel: ', payload[4])
+                print('CrossComms!Warning: Expected but did not find a known guild in the parcel: ', guild_name)
                 return
             end
             for player, guild in pairs(CharacterStats) do
-                debug('LOOPING', player, guild, payload[4])
+                debug('LOOPING', player, guild, guild_name)
                 --Find the first gamer registered in the next guild.
-                if guild ~= payload[4] then
-                    if markMessageUsed(payload[3]..payload[5]) then
-                        C_ChatInfo.SendAddonMessage(PREFIX, 'PLEASE_SEND'..SEP..message_prefix..payload[3]..': '..payload[5], 'WHISPER', player)
+                if guild ~= guild_name then
+                    if markMessageUsed(author..text) then
+                        C_ChatInfo.SendAddonMessage(PREFIX, 'PLEASE_SEND'..SEP..message_prefix..author..message_sep..' '..text, 'WHISPER', player)
                     end
                     return
                 end
             end
-        elseif payload[1] == 'PLEASE_SEND' then
-            debug('Addon would send', payload[2], 'to guild')
-            SendChatMessage(payload[2], 'GUILD')
+        elseif signal == 'PLEASE_SEND' then
+            local signal, message_payload = unpack(payload) 
+            debug('Addon would send', message_payload, 'to guild')
+            SendChatMessage(message_payload, 'GUILD')
         end
-    elseif event == 'CHAT_MSG_CHANNEL_LEAVE' and channel == CHANNEL_NAME then
-        local _, name, _, _, index, channel = ...
+    elseif event == 'CHAT_MSG_CHANNEL_LEAVE' then
+        local _, name, _, _, _, _, _, index, channel = ...
+        if channel ~= CHANNEL_NAME then
+            return
+        end
 
         debug('Unregistering....')
         CharacterStats[name] = nil
         debug('Unregistered '..name)
+        if name == CURRENT_OWNER then
+            DisplayChannelOwner(CHANNEL_NAME)
+        end
+    elseif event == 'GUILD_ROSTER_UPDATE' then
+        --GUILD_ROSTER = buildGuildRoster()
+    elseif event == 'CHAT_MSG_SYSTEM' then
+        local message = ...
+        debug(message)
+
+        if message:find('has come online') then
+            relayHasComeOnline(message)
+        end
+        if message:find('has gone offline') then
+            relayHasGoneOffline(message)
+        end
+        if message:find('has joined the guild') then
+            relayHasJoinedGuild(message)
+        end
+        if message:find('has left the guild') then
+            relayHasLeftGuild(message)
+        end
     end
 end
+
+function relayHasGoneOffline(message)
+    local name = message:gmatch('%a+')()
+    if not GUILD_ROSTER[name:lower()] then
+        return
+    end
+
+    local guild_name = GetGuildInfo('player')
+    local payload = table.concat({'SENT_FROM', name, guild_name, '' ,'has gone offline.'}, SEP)
+    debug(payload)
+    C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
+end
+
+function relayHasComeOnline(message)
+    debug('message is', message)
+    local name = message:gmatch('%[(%a+)%]')()
+    debug('Has come online check',name, name:lower(), GUILD_ROSTER[name:lower()])
+    if not GUILD_ROSTER[name:lower()] then
+        return
+    end
+
+    local guild_name = GetGuildInfo('player')
+    local payload = table.concat({'SENT_FROM', name, guild_name, '', 'has come online.'}, SEP)
+    debug(payload)
+    C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
+end
+
+function relayHasJoinedGuild(message)
+    local name = message:gmatch('%a+')()
+
+    local guild_name = GetGuildInfo('player')
+    local payload = table.concat({'SENT_FROM', name, guild_name, '', 'has joined the guild'}, SEP)
+    debug(payload)
+    C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
+    local payload = table.concat({'SENT_FROM', name, guild_name, '', 'has come online.'}, SEP)
+    C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
+
+    GUILD_ROSTER = buildGuildRoster();
+end
+
+
+function relayHasLeftGuild(message)
+    local name = message:gmatch('%a+')()
+
+    local guild_name = GetGuildInfo('player')
+    local payload = table.concat({'SENT_FROM', name, guild_name, '', 'has left the guild'}, SEP)
+    GUILD_ROSTER[name:lower()] = nil
+    debug(payload)
+    C_ChatInfo.SendAddonMessage(PREFIX, payload, 'WHISPER', CURRENT_OWNER)
+end
+
+
 
 function printHelp()
     for key, value in pairs(SLASH_COMMANDS) do
@@ -143,7 +225,9 @@ end
 
 local SLASH_COMMANDS = {
     help = { help_doc = 'Display help for CrossComms!', func = printHelp},
-    
+    leader = { help_doc = 'Display current leader.', func = function()
+        print('Current leader is:', CURRENT_OWNER)
+    end}
 }
 
 
@@ -167,6 +251,8 @@ local SLASH_COMMANDS = {
     CrossComms:RegisterEvent('CHAT_MSG_CHANNEL_NOTICE');
     CrossComms:RegisterEvent('CHAT_MSG_CHANNEL_NOTICE_USER');
     CrossComms:RegisterEvent('CHAT_MSG_CHANNEL_LEAVE');
+    CrossComms:RegisterEvent('CHAT_MSG_SYSTEM');
+    CrossComms:RegisterEvent('GUILD_ROSTER_UPDATE');
     --CrossComms:RegisterEvent('CHAT_MSG_CHANNEL_JOIN');
     CrossComms:SetScript('OnEvent', eventHandler);
 

@@ -1,7 +1,7 @@
 ## Interface: 20501
 ## Title: CrossComms!
 ## Author: Garrett "Oreganop" Swann
-## Version: a0.0.2
+## Version: a0.0.3
 ## Notes: Integration for mostly-seemless cross-guild relaying.
 ## X-Category: Communication
 ## X-Website: https://github.com/garrett-is-a-swann/CrossComms

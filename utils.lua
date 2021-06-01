@@ -21,7 +21,7 @@ NAMESPACE.split = function(string, over)
 end
 
 -- Debug function
-local DEBUG_LEVEL = true
+local DEBUG_LEVEL = false
 NAMESPACE.debug = function(...)
     if DEBUG_LEVEL then
         print(...)

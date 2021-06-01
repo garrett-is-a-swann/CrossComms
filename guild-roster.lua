@@ -1,5 +1,6 @@
 local ADDON_NAME, NAMESPACE = ...
 local GUILD_ROSTER = {}
+
 NAMESPACE.buildGuildRoster = function()
     GUILD_ROSTER = {}
     for index=0, GetNumGuildMembers() do
